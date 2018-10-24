@@ -37,6 +37,9 @@ use GD::Graph::area;
 use GD::Graph::Data;
 use GD::Graph::colour;
 
+# for rawdata output
+use Text::Table::CSV;
+
 #----------------------------------------------------------------------------
 # Global variables, main data structures
 #----------------------------------------------------------------------------
@@ -54,6 +57,9 @@ my $threshold = 1.0;
 # Whether the graph will be detailed, which requires us to only use
 # the details snapshots.
 my $arg_detailed = 0;
+
+# print out the processed x/y coordinates, we do not create a graph.
+my $arg_rawdata = 0;
 
 # Input file name
 my $input_file = undef;
@@ -73,6 +79,7 @@ usage: massif_grapher [options] massif-out-file
     --version             show version
     --threshold=<m.n>     significance threshold, in percent [$threshold] (specify this to massif too).
     --detailed            Print allocation details, using only the detailed snapshots.
+    --rawdata             do not generate graph, return raw x/y data.
 
   massif_grapher is Copyright (C) 2007-2007 Nicholas Nethercote, and Copyright (C) 2009 Murray Cumming
   and licensed under the GNU General Public License, version 2.
@@ -135,6 +142,9 @@ sub process_cmd_line()
 
             } elsif ($arg =~ /^--detailed$/) {
                 $arg_detailed = 1;
+
+            } elsif ($arg =~ /^--rawdata$/) {
+                $arg_rawdata = 1;
 
             } else {            # -h and --help fall under this case
                 die($usage);
@@ -366,6 +376,23 @@ sub read_input_file()
     print("\n\n");
 }
 
+sub print_rawdata() {
+
+    my $n_snapshots = scalar(@snapshot_nums);
+    ($n_snapshots > 0) or die;
+
+    my $rows = [['Time', 'Heap', 'Heap-Extra', 'Stack']];
+
+    # collect values into rows
+    for (my $i = 0; $i < $n_snapshots; $i++) {
+        my $gd_row = [$times[$i], $mem_heap_Bs[$i], $mem_heap_extra_Bs[$i], $mem_stacks_Bs[$i]];
+        push (@$rows, $gd_row);
+    }
+
+    print Text::Table::CSV::table(rows => $rows, header_row => 1);
+
+}
+
 sub print_graph() {
 
     #-------------------------------------------------------------------------
@@ -536,7 +563,11 @@ sub print_graph() {
 #----------------------------------------------------------------------------
 process_cmd_line();
 read_input_file();
-print_graph();
+if ($arg_rawdata) {
+    print_rawdata();
+} else {
+    print_graph();
+}
 
 ##--------------------------------------------------------------------##
 ##--- end                                              ms_print.in ---##
